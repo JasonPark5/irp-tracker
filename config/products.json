@@ -6,8 +6,8 @@
       "company": "samsung",
       "dataFile": "data/samsung-1277.json",
       "url": "https://www.samsunglife.com/individual/products/pension/PDP-PRREA990110M/1277/1277",
-      "purchasePrice": 2707.97,
-      "purchaseDate": "2026-03-05",
+      "purchasePrice": 2678.42,
+      "purchaseDate": "2026-03-06",
       "units": 5665911,
       "currency": "KRW"
     },
@@ -17,8 +17,8 @@
       "company": "samsung",
       "dataFile": "data/samsung-1270.json",
       "url": "https://www.samsunglife.com/individual/products/pension/PDP-PRREA990110M/1270/1270",
-      "purchasePrice": 2970.17,
-      "purchaseDate": "2026-03-05",
+      "purchasePrice": 3314.85,
+      "purchaseDate": "2026-03-06",
       "units": 19952129,
       "currency": "KRW"
     },
@@ -28,8 +28,8 @@
       "company": "samsung",
       "dataFile": "data/samsung-12420H.json",
       "url": "https://www.samsunglife.com/individual/products/pension/PDP-PRREA990110M/12420H/12420H",
-      "purchasePrice": 2785.94,
-      "purchaseDate": "2026-03-05",
+      "purchasePrice": 3112.74,
+      "purchaseDate": "2026-03-06",
       "units": 16372623,
       "currency": "KRW"
     }
