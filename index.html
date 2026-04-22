@@ -80,6 +80,8 @@ const $ = id => document.getElementById(id);
 function fmt(n, d=2) { return n.toLocaleString('ko-KR', {minimumFractionDigits:d,maximumFractionDigits:d}); }
 function fmtKRW(n) { return Math.round(n).toLocaleString('ko-KR') + '원'; }
 function fmtM(n) { return (Math.round(n/10000)/100).toLocaleString('ko-KR', {minimumFractionDigits:0,maximumFractionDigits:2}) + '만원'; }
+// 기준가는 1,000좌 기준 → 평가금액 = 기준가 / 1000 × 좌수
+function evalAmt(price, units) { return price / 1000 * units; }
 
 function filterByPeriod(history) {
   if (!periodDays) return history;
@@ -113,8 +115,8 @@ function renderPortfolio() {
     const h = p.history;
     if (!h.length) return null;
     const latest = h[h.length-1];
-    const cost = p.purchasePrice * p.units;
-    const eval_ = latest.price * p.units;
+    const cost = evalAmt(p.purchasePrice, p.units);
+    const eval_ = evalAmt(latest.price, p.units);
     const ret = (latest.price - p.purchasePrice) / p.purchasePrice * 100;
     if (latest.date > latestDate) latestDate = latest.date;
     totalCost += cost; totalEval += eval_;
@@ -204,7 +206,7 @@ function renderPortfolio() {
     let total = 0, allFound = false;
     for (const s of productStats) {
       const h = s.product.history.find(x => x.date === date);
-      if (h) { total += (h.price - s.product.purchasePrice) * s.product.units; allFound = true; }
+      if (h) { total += evalAmt(h.price - s.product.purchasePrice, s.product.units); allFound = true; }
     }
     return allFound ? Math.round(total) : null;
   });
@@ -248,7 +250,7 @@ function renderPortfolio() {
     label: s.product.name,
     data: filtered.map(date => {
       const h = s.product.history.find(x => x.date === date);
-      return h ? Math.round((h.price - s.product.purchasePrice) * s.product.units) : null;
+      return h ? Math.round(evalAmt(h.price - s.product.purchasePrice, s.product.units)) : null;
     }),
     borderColor: s.color, backgroundColor: s.color + '20',
     fill: false, tension: 0.3, pointRadius: filtered.length > 60 ? 0 : 3, borderWidth: 2, spanGaps: true,
@@ -310,8 +312,8 @@ function renderProduct(idx) {
   const latest = history[history.length-1];
   const prev   = history.length > 1 ? history[history.length-2] : null;
   const ret    = (latest.price - purchasePrice) / purchasePrice * 100;
-  const eval_  = latest.price * units;
-  const cost   = purchasePrice * units;
+  const eval_  = evalAmt(latest.price, units);
+  const cost   = evalAmt(purchasePrice, units);
   const profit = eval_ - cost;
   const dayChg = prev ? latest.price - prev.price : 0;
   const dayPct = prev ? dayChg / prev.price * 100 : 0;
@@ -337,7 +339,7 @@ function renderProduct(idx) {
   if (returnChart) returnChart.destroy();
   if (plChart)     plChart.destroy();
 
-  const profits = filtered.map(h => Math.round((h.price - purchasePrice) * units));
+  const profits = filtered.map(h => Math.round(evalAmt(h.price - purchasePrice, units)));
   const profitPositive = profits[profits.length - 1] >= 0;
 
   priceChart = new Chart($('price-chart'), {
@@ -365,14 +367,14 @@ function renderProduct(idx) {
     const chg = prevH ? h.price - prevH.price : 0;
     const chgPct = prevH ? chg / prevH.price * 100 : 0;
     const r = (h.price - purchasePrice) / purchasePrice * 100;
-    const pl = Math.round((h.price - purchasePrice) * units);
+    const pl = Math.round(evalAmt(h.price - purchasePrice, units));
     return `<tr>
       <td>${h.date}</td>
       <td>${fmt(h.price)}</td>
       <td class="${chg>=0?'positive':'negative'}">${chg!==0?(chg>=0?'+':'')+fmt(chg)+' ('+(chgPct>=0?'+':'')+fmt(chgPct)+'%)':'-'}</td>
       <td class="${r>=0?'positive':'negative'}">${r>=0?'+':''}${fmt(r)}%</td>
       <td class="${pl>=0?'positive':'negative'}">${pl>=0?'+':''}${pl.toLocaleString('ko-KR')}원</td>
-      <td>${Math.round(h.price*units).toLocaleString('ko-KR')}원</td>
+      <td>${Math.round(evalAmt(h.price, units)).toLocaleString('ko-KR')}원</td>
     </tr>`;
   }).join('');
 }
