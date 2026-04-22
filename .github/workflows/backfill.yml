@@ -1,0 +1,55 @@
+name: Backfill Historical Prices
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_id:
+        description: '상품 ID (비워두면 전체)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run backfill
+        run: |
+          if [ -n "${{ github.event.inputs.product_id }}" ]; then
+            node scripts/backfill.js "${{ github.event.inputs.product_id }}"
+          else
+            # config에 있는 모든 상품 순서대로 실행
+            node -e "
+              const cfg = require('./config/products.json');
+              const { execSync } = require('child_process');
+              for (const p of cfg.products) {
+                console.log('=== ' + p.id + ' ===');
+                execSync('node scripts/backfill.js ' + p.id, { stdio: 'inherit' });
+              }
+            "
+          fi
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet && echo "변경 없음" || \
+            git commit -m "data: 과거 기준가 백필 ($(TZ='Asia/Seoul' date '+%Y-%m-%d'))" && git push
