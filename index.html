@@ -73,7 +73,7 @@
 const PALETTE = ['#6366f1','#22c55e','#f59e0b','#ec4899','#06b6d4','#a78bfa'];
 
 let config, products = [], currentIdx = -1 /* -1 = 전체 */, periodDays = 0;
-let priceChart, returnChart;
+let priceChart, returnChart, plChart;
 
 const $ = id => document.getElementById(id);
 
@@ -139,14 +139,22 @@ function renderPortfolio() {
     <div id="kpi-grid"></div>
     <div id="product-cards"></div>
     <div class="chart-wrap">
-      <h2>상품별 누적 수익률 비교 (%)</h2>
+      <h2>합산 손익금 추이 (원)</h2>
       <div id="period-btns">
         <button class="period-btn${periodDays===14?' active':''}" data-days="14">2주</button>
         <button class="period-btn${periodDays===30?' active':''}" data-days="30">1개월</button>
         <button class="period-btn${periodDays===90?' active':''}" data-days="90">3개월</button>
         <button class="period-btn${periodDays===0?' active':''}" data-days="0">전체</button>
       </div>
+      <div class="chart-container"><canvas id="pl-chart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <h2>상품별 누적 수익률 비교 (%)</h2>
       <div class="chart-container"><canvas id="return-chart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <h2>상품별 손익금 비교 (원)</h2>
+      <div class="chart-container"><canvas id="pl-product-chart"></canvas></div>
     </div>
     <div id="history-wrap" style="display:none"></div>
   `;
@@ -190,29 +198,72 @@ function renderPortfolio() {
     btn.onclick = () => { periodDays = +btn.dataset.days; renderPortfolio(); };
   });
 
+  // 합산 손익금 추이 차트
+  if (plChart) plChart.destroy();
+  const totalPlData = filtered.map(date => {
+    let total = 0, allFound = false;
+    for (const s of productStats) {
+      const h = s.product.history.find(x => x.date === date);
+      if (h) { total += (h.price - s.product.purchasePrice) * s.product.units; allFound = true; }
+    }
+    return allFound ? Math.round(total) : null;
+  });
+  const plPositive = totalPlData[totalPlData.length - 1] >= 0;
+  plChart = new Chart($('pl-chart'), {
+    type: 'line',
+    data: { labels: filtered, datasets: [{
+      data: totalPlData,
+      borderColor: plPositive ? '#22c55e' : '#ef4444',
+      backgroundColor: plPositive ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)',
+      fill: true, tension: 0.3,
+      pointRadius: filtered.length > 60 ? 0 : 3, borderWidth: 2, spanGaps: true,
+    }]},
+    options: {
+      ...chartOpts('손익금 (원)'),
+      plugins: { ...chartOpts().plugins, tooltip: { mode: 'index', intersect: false,
+        callbacks: { label: ctx => (ctx.raw >= 0 ? '+' : '') + Math.round(ctx.raw).toLocaleString('ko-KR') + '원' }
+      }}
+    }
+  });
+
   // 수익률 비교 차트
   if (returnChart) returnChart.destroy();
-  const datasets = productStats.map(s => {
-    const data = filtered.map(date => {
+  const retDatasets = productStats.map(s => ({
+    label: s.product.name,
+    data: filtered.map(date => {
       const h = s.product.history.find(x => x.date === date);
-      const price = h ? h.price : null;
-      return price !== null ? +((price - s.product.purchasePrice) / s.product.purchasePrice * 100).toFixed(2) : null;
-    });
-    return {
-      label: s.product.name,
-      data,
-      borderColor: s.color,
-      backgroundColor: s.color + '20',
-      fill: false, tension: 0.3,
-      pointRadius: filtered.length > 60 ? 0 : 3,
-      borderWidth: 2,
-      spanGaps: true,
-    };
-  });
+      return h ? +((h.price - s.product.purchasePrice) / s.product.purchasePrice * 100).toFixed(2) : null;
+    }),
+    borderColor: s.color, backgroundColor: s.color + '20',
+    fill: false, tension: 0.3, pointRadius: filtered.length > 60 ? 0 : 3, borderWidth: 2, spanGaps: true,
+  }));
   returnChart = new Chart($('return-chart'), {
     type: 'line',
-    data: { labels: filtered, datasets },
+    data: { labels: filtered, datasets: retDatasets },
     options: chartOpts('수익률 (%)', true)
+  });
+
+  // 상품별 손익금 비교 차트
+  const plDatasets = productStats.map(s => ({
+    label: s.product.name,
+    data: filtered.map(date => {
+      const h = s.product.history.find(x => x.date === date);
+      return h ? Math.round((h.price - s.product.purchasePrice) * s.product.units) : null;
+    }),
+    borderColor: s.color, backgroundColor: s.color + '20',
+    fill: false, tension: 0.3, pointRadius: filtered.length > 60 ? 0 : 3, borderWidth: 2, spanGaps: true,
+  }));
+  new Chart($('pl-product-chart'), {
+    type: 'line',
+    data: { labels: filtered, datasets: plDatasets },
+    options: {
+      ...chartOpts('손익금 (원)', true),
+      plugins: { legend: { display: true, labels: { color: '#8892a4', boxWidth: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', intersect: false,
+          callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.raw >= 0 ? '+' : '') + Math.round(ctx.raw).toLocaleString('ko-KR') + '원' }
+        }
+      }
+    }
   });
 }
 
@@ -240,10 +291,14 @@ function renderProduct(idx) {
       <h2>누적 수익률 (%)</h2>
       <div class="chart-container"><canvas id="return-chart"></canvas></div>
     </div>
+    <div class="chart-wrap">
+      <h2>손익금 추이 (원)</h2>
+      <div class="chart-container"><canvas id="pl-chart"></canvas></div>
+    </div>
     <div id="history-wrap">
       <h2>기준가 이력</h2>
       <table>
-        <thead><tr><th>날짜</th><th>기준가</th><th>전일대비</th><th>수익률</th><th>평가금액</th></tr></thead>
+        <thead><tr><th>날짜</th><th>기준가</th><th>전일대비</th><th>수익률</th><th>손익금</th><th>평가금액</th></tr></thead>
         <tbody id="history-tbody"></tbody>
       </table>
     </div>
@@ -280,6 +335,10 @@ function renderProduct(idx) {
 
   if (priceChart)  priceChart.destroy();
   if (returnChart) returnChart.destroy();
+  if (plChart)     plChart.destroy();
+
+  const profits = filtered.map(h => Math.round((h.price - purchasePrice) * units));
+  const profitPositive = profits[profits.length - 1] >= 0;
 
   priceChart = new Chart($('price-chart'), {
     type: 'line',
@@ -293,16 +352,26 @@ function renderProduct(idx) {
     options: chartOpts('수익률 (%)')
   });
 
+  plChart = new Chart($('pl-chart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data: profits, borderColor: profitPositive?'#22c55e':'#ef4444', backgroundColor: profitPositive?'rgba(34,197,94,.1)':'rgba(239,68,68,.1)', fill:true, tension:.3, pointRadius: profits.length>60?0:3, borderWidth:2 }] },
+    options: { ...chartOpts('손익금 (원)'), plugins: { legend:{display:false}, tooltip:{ mode:'index', intersect:false,
+      callbacks:{ label: ctx => (ctx.raw>=0?'+':'')+Math.round(ctx.raw).toLocaleString('ko-KR')+'원' }
+    }}}
+  });
+
   $('history-tbody').innerHTML = [...history].reverse().map((h, i, arr) => {
     const prevH = arr[i+1];
     const chg = prevH ? h.price - prevH.price : 0;
     const chgPct = prevH ? chg / prevH.price * 100 : 0;
     const r = (h.price - purchasePrice) / purchasePrice * 100;
+    const pl = Math.round((h.price - purchasePrice) * units);
     return `<tr>
       <td>${h.date}</td>
       <td>${fmt(h.price)}</td>
       <td class="${chg>=0?'positive':'negative'}">${chg!==0?(chg>=0?'+':'')+fmt(chg)+' ('+(chgPct>=0?'+':'')+fmt(chgPct)+'%)':'-'}</td>
       <td class="${r>=0?'positive':'negative'}">${r>=0?'+':''}${fmt(r)}%</td>
+      <td class="${pl>=0?'positive':'negative'}">${pl>=0?'+':''}${pl.toLocaleString('ko-KR')}원</td>
       <td>${Math.round(h.price*units).toLocaleString('ko-KR')}원</td>
     </tr>`;
   }).join('');
@@ -314,6 +383,7 @@ function switchTab(idx) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i === idx+1));
   if (priceChart)  { priceChart.destroy();  priceChart  = null; }
   if (returnChart) { returnChart.destroy(); returnChart = null; }
+  if (plChart)     { plChart.destroy();     plChart     = null; }
   if (idx === -1) renderPortfolio();
   else renderProduct(idx);
 }
