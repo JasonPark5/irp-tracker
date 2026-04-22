@@ -1,4 +1,5 @@
 {
+  "initialDeposit": 119554724,
   "products": [
     {
       "id": "samsung-1277",
@@ -6,10 +7,9 @@
       "company": "samsung",
       "dataFile": "data/samsung-1277.json",
       "url": "https://www.samsunglife.com/individual/products/pension/PDP-PRREA990110M/1277/1277",
-      "purchasePrice": 2678.42,
       "purchaseDate": "2026-03-06",
       "units": 5665911,
-      "totalInvested": 15175688,
+      "totalInvested": 15174739,
       "currency": "KRW"
     },
     {
@@ -18,10 +18,9 @@
       "company": "samsung",
       "dataFile": "data/samsung-1270.json",
       "url": "https://www.samsunglife.com/individual/products/pension/PDP-PRREA990110M/1270/1270",
-      "purchasePrice": 3314.85,
       "purchaseDate": "2026-03-06",
       "units": 19952129,
-      "totalInvested": 66139368,
+      "totalInvested": 66132991,
       "currency": "KRW"
     },
     {
@@ -30,10 +29,9 @@
       "company": "samsung",
       "dataFile": "data/samsung-12420H.json",
       "url": "https://www.samsunglife.com/individual/products/pension/PDP-PRREA990110M/12420H/12420H",
-      "purchasePrice": 3112.74,
       "purchaseDate": "2026-03-06",
       "units": 16372623,
-      "totalInvested": 50963678,
+      "totalInvested": 50958251,
       "currency": "KRW"
     }
   ]

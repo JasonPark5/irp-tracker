@@ -111,13 +111,14 @@ function renderPortfolio() {
 
   // KPI 계산
   let totalInvestedSum=0, totalEval=0, latestDate='';
+  const initialDeposit = config.initialDeposit || 0;
   const productStats = products.map((p, i) => {
     const h = p.history.filter(x => x.date >= p.purchaseDate); // purchaseDate 이후만
     if (!h.length) return null;
     const latest = h[h.length-1];
-    const invested = p.totalInvested || evalAmt(p.purchasePrice, p.units);
+    const invested = p.totalInvested;
     const eval_ = evalAmt(latest.price, p.units);
-    const ret = (latest.price - p.purchasePrice) / p.purchasePrice * 100;
+    const ret = (latest.price - p.avgPurchasePrice) / p.avgPurchasePrice * 100;
     if (latest.date > latestDate) latestDate = latest.date;
     totalInvestedSum += invested; totalEval += eval_;
     return { product: p, history: h, latest, invested, eval_, ret, color: PALETTE[i % PALETTE.length] };
@@ -125,6 +126,8 @@ function renderPortfolio() {
 
   const totalProfit = totalEval - totalInvestedSum;
   const totalRet = totalInvestedSum ? (totalProfit / totalInvestedSum) * 100 : 0;
+  const depositProfit = totalEval - initialDeposit;
+  const depositRet = initialDeposit ? (depositProfit / initialDeposit) * 100 : 0;
 
   $('last-updated').textContent = latestDate ? `마지막 업데이트: ${latestDate}` : '';
 
@@ -166,9 +169,9 @@ function renderPortfolio() {
   const kpi = $('kpi-grid');
   kpi.innerHTML = `
     <div class="kpi-card">
-      <div class="label">총 매입금액</div>
-      <div class="value neutral">${fmtM(totalInvestedSum)}</div>
-      <div class="sub">${Math.round(totalInvestedSum).toLocaleString('ko-KR')}원</div>
+      <div class="label">원금(입금액)</div>
+      <div class="value neutral">${fmtM(initialDeposit)}</div>
+      <div class="sub">${Math.round(initialDeposit).toLocaleString('ko-KR')}원</div>
     </div>
     <div class="kpi-card">
       <div class="label">총 평가금액</div>
@@ -176,15 +179,20 @@ function renderPortfolio() {
       <div class="sub">${Math.round(totalEval).toLocaleString('ko-KR')}원</div>
     </div>
     <div class="kpi-card">
-      <div class="label">총 손익</div>
+      <div class="label">원금 대비 손익</div>
+      <div class="value ${depositProfit>=0?'positive':'negative'}">${depositProfit>=0?'+':''}${fmtM(depositProfit)}</div>
+      <div class="sub">수익률 ${depositRet>=0?'+':''}${fmt(depositRet)}%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">매입원가 기준 손익</div>
       <div class="value ${totalProfit>=0?'positive':'negative'}">${totalProfit>=0?'+':''}${fmtM(totalProfit)}</div>
-      <div class="sub">수익률 ${totalRet>=0?'+':''}${fmt(totalRet)}%</div>
+      <div class="sub">수익률 ${totalRet>=0?'+':''}${fmt(totalRet)}% · 매입 ${fmtM(totalInvestedSum)}</div>
     </div>
     ${productStats.map(s => `
     <div class="kpi-card">
       <div class="label">${s.product.name}</div>
       <div class="value ${s.ret>=0?'positive':'negative'}">${s.ret>=0?'+':''}${fmt(s.ret)}%</div>
-      <div class="sub">${fmtM(s.eval_)} · 매입 ${fmtM(s.invested)}</div>
+      <div class="sub">${fmtM(s.eval_)} · 평균매입 ${fmtM(s.invested)}</div>
     </div>`).join('')}
   `;
 
@@ -214,7 +222,7 @@ function renderPortfolio() {
     let total = 0, allFound = false;
     for (const s of productStats) {
       const h = s.history.find(x => x.date === date);
-      if (h) { total += evalAmt(h.price - s.product.purchasePrice, s.product.units); allFound = true; }
+      if (h) { total += evalAmt(h.price - s.product.avgPurchasePrice, s.product.units); allFound = true; }
     }
     return allFound ? Math.round(total) : null;
   });
@@ -242,7 +250,7 @@ function renderPortfolio() {
     label: s.product.name,
     data: filtered.map(date => {
       const h = s.history.find(x => x.date === date);
-      return h ? +((h.price - s.product.purchasePrice) / s.product.purchasePrice * 100).toFixed(2) : null;
+      return h ? +((h.price - s.product.avgPurchasePrice) / s.product.avgPurchasePrice * 100).toFixed(2) : null;
     }),
     borderColor: s.color, backgroundColor: s.color + '20',
     fill: false, tension: 0.3, pointRadius: filtered.length > 60 ? 0 : 3, borderWidth: 2, spanGaps: true,
@@ -258,7 +266,7 @@ function renderPortfolio() {
     label: s.product.name,
     data: filtered.map(date => {
       const h = s.history.find(x => x.date === date);
-      return h ? Math.round(evalAmt(h.price - s.product.purchasePrice, s.product.units)) : null;
+      return h ? Math.round(evalAmt(h.price - s.product.avgPurchasePrice, s.product.units)) : null;
     }),
     borderColor: s.color, backgroundColor: s.color + '20',
     fill: false, tension: 0.3, pointRadius: filtered.length > 60 ? 0 : 3, borderWidth: 2, spanGaps: true,
@@ -280,7 +288,8 @@ function renderPortfolio() {
 /* ── 개별 상품 탭 렌더 ───────────────────────────────────── */
 function renderProduct(idx) {
   const p = products[idx];
-  const { history, purchasePrice, units, purchaseDate } = p;
+  const { history, avgPurchasePrice, units, purchaseDate } = p;
+  const purchasePrice = avgPurchasePrice;
   const color = PALETTE[idx % PALETTE.length];
 
   $('last-updated').textContent = history.length ? `마지막 업데이트: ${history[history.length-1].date}` : '';
@@ -329,12 +338,12 @@ function renderProduct(idx) {
   const days   = Math.round((new Date(latest.date) - new Date(purchaseDate)) / 86400000);
 
   $('kpi-grid').innerHTML = `
-    <div class="kpi-card"><div class="label">현재 기준가</div><div class="value neutral">${fmt(latest.price)}</div><div class="sub">매입가 ${fmt(purchasePrice)}</div></div>
+    <div class="kpi-card"><div class="label">현재 기준가</div><div class="value neutral">${fmt(latest.price)}</div><div class="sub">평균매입가 ${fmt(purchasePrice)}</div></div>
     <div class="kpi-card"><div class="label">전일 대비</div><div class="value ${dayChg>=0?'positive':'negative'}">${dayChg>=0?'+':''}${fmt(dayChg)}</div><div class="sub">${dayChg>=0?'+':''}${fmt(dayPct)}%</div></div>
     <div class="kpi-card"><div class="label">누적 수익률</div><div class="value ${ret>=0?'positive':'negative'}">${ret>=0?'+':''}${fmt(ret)}%</div><div class="sub">보유 ${days}일</div></div>
     <div class="kpi-card"><div class="label">매입금액</div><div class="value neutral">${fmtM(invested)}</div><div class="sub">${Math.round(invested).toLocaleString('ko-KR')}원</div></div>
     <div class="kpi-card"><div class="label">평가금액</div><div class="value neutral">${fmtM(eval_)}</div><div class="sub">손익 <span class="${profit>=0?'positive':'negative'}">${profit>=0?'+':''}${fmtM(profit)}</span></div></div>
-    <div class="kpi-card"><div class="label">보유 좌수</div><div class="value neutral">${units.toLocaleString('ko-KR')}</div><div class="sub">가중평균단가 ${fmt(purchasePrice)}</div></div>
+    <div class="kpi-card"><div class="label">보유 좌수</div><div class="value neutral">${units.toLocaleString('ko-KR')}</div><div class="sub">가중평균단가 ${fmt(avgPurchasePrice)}</div></div>
   `;
 
   $('view').querySelectorAll('.period-btn').forEach(btn => {
@@ -408,8 +417,12 @@ function switchTab(idx) {
   for (const [i, p] of config.products.entries()) {
     try {
       const h = await (await fetch(p.dataFile+'?v='+Date.now())).json();
-      products.push({ ...p, history: h });
-    } catch { products.push({ ...p, history: [] }); }
+      const avgPurchasePrice = p.totalInvested * 1000 / p.units;
+      products.push({ ...p, history: h, avgPurchasePrice });
+    } catch {
+      const avgPurchasePrice = p.totalInvested * 1000 / p.units;
+      products.push({ ...p, history: [], avgPurchasePrice });
+    }
   }
 
   // 탭 생성: 전체 + 개별 상품
