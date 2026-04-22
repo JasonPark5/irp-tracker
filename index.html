@@ -7,302 +7,346 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --border: #2a2d3a;
-      --text: #e2e8f0;
-      --muted: #8892a4;
-      --green: #22c55e;
-      --red: #ef4444;
-      --blue: #3b82f6;
-      --accent: #6366f1;
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+      --text: #e2e8f0; --muted: #8892a4;
+      --green: #22c55e; --red: #ef4444; --blue: #3b82f6; --accent: #6366f1;
+      --colors: #6366f1,#22c55e,#f59e0b,#ec4899,#06b6d4,#a78bfa;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
 
-    header {
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
     #last-updated { font-size: 0.75rem; color: var(--muted); }
 
     main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
 
-    /* 상품 탭 */
     #tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
-    .tab-btn {
-      padding: 8px 18px; border-radius: 999px; border: 1px solid var(--border);
-      background: var(--surface); color: var(--muted); cursor: pointer; font-size: 0.875rem;
-      transition: all .2s;
-    }
+    .tab-btn { padding: 8px 18px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 0.875rem; transition: all .15s; }
     .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-    /* KPI 카드 */
-    #kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 28px;
-    }
-    .kpi-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-    }
-    .kpi-card .label { font-size: 0.75rem; color: var(--muted); margin-bottom: 8px; }
-    .kpi-card .value { font-size: 1.6rem; font-weight: 700; line-height: 1; }
-    .kpi-card .sub { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
-    .positive { color: var(--green); }
-    .negative { color: var(--red); }
-    .neutral { color: var(--blue); }
+    #kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .kpi-card .label { font-size: 0.72rem; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+    .kpi-card .value { font-size: 1.55rem; font-weight: 700; line-height: 1; }
+    .kpi-card .sub { font-size: 0.72rem; color: var(--muted); margin-top: 6px; }
 
-    /* 차트 */
-    .chart-wrap {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-    .chart-wrap h2 { font-size: 0.875rem; color: var(--muted); margin-bottom: 16px; }
-    .chart-container { position: relative; height: 260px; }
+    .positive { color: var(--green); } .negative { color: var(--red); } .neutral { color: var(--blue); }
 
-    /* 기간 필터 */
-    #period-btns { display: flex; gap: 6px; margin-bottom: 16px; }
-    .period-btn {
-      padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border);
-      background: transparent; color: var(--muted); cursor: pointer; font-size: 0.75rem;
-    }
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .chart-wrap h2 { font-size: 0.8rem; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .05em; }
+    .chart-container { position: relative; height: 240px; }
+
+    #period-btns { display: flex; gap: 6px; margin-bottom: 14px; }
+    .period-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 0.75rem; }
     .period-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-    /* 이력 테이블 */
-    #history-wrap {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    #history-wrap h2 { font-size: 0.875rem; color: var(--muted); padding: 16px 20px 0; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    th { padding: 10px 20px; text-align: left; color: var(--muted); font-weight: 500; font-size: 0.75rem; border-bottom: 1px solid var(--border); }
+    /* 상품별 미니 카드 (전체 탭) */
+    #product-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .product-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; cursor: pointer; transition: border-color .15s; }
+    .product-card:hover { border-color: var(--accent); }
+    .product-card .pc-name { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+    .product-card .pc-row { display: flex; justify-content: space-between; align-items: baseline; }
+    .product-card .pc-val { font-size: 1.1rem; font-weight: 700; }
+    .product-card .pc-ret { font-size: 0.85rem; font-weight: 600; }
+
+    #history-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    #history-wrap h2 { font-size: 0.8rem; color: var(--muted); padding: 16px 20px 0; text-transform: uppercase; letter-spacing: .05em; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th { padding: 10px 20px; text-align: left; color: var(--muted); font-weight: 500; font-size: 0.72rem; border-bottom: 1px solid var(--border); }
     td { padding: 10px 20px; border-bottom: 1px solid var(--border); }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: rgba(255,255,255,.03); }
-
-    #error-msg { color: var(--red); padding: 40px; text-align: center; }
   </style>
 </head>
 <body>
 <header>
   <h1>📈 IRP 수익률 트래커</h1>
-  <span id="last-updated">로딩 중...</span>
+  <span id="last-updated"></span>
 </header>
 <main>
   <div id="tabs"></div>
-  <div id="kpi-grid"></div>
-
-  <div class="chart-wrap">
-    <h2>기준가 추이</h2>
-    <div id="period-btns">
-      <button class="period-btn" data-days="14">2주</button>
-      <button class="period-btn" data-days="30">1개월</button>
-      <button class="period-btn" data-days="90">3개월</button>
-      <button class="period-btn active" data-days="0">전체</button>
-    </div>
-    <div class="chart-container"><canvas id="price-chart"></canvas></div>
-  </div>
-
-  <div class="chart-wrap">
-    <h2>누적 수익률 (%)</h2>
-    <div class="chart-container"><canvas id="return-chart"></canvas></div>
-  </div>
-
-  <div id="history-wrap">
-    <h2>기준가 이력</h2>
-    <table>
-      <thead><tr><th>날짜</th><th>기준가</th><th>전일대비</th><th>수익률</th><th>평가금액</th></tr></thead>
-      <tbody id="history-tbody"></tbody>
-    </table>
-  </div>
+  <div id="view"></div>
 </main>
 
 <script>
-(async () => {
-  let config, allProducts = [], currentIdx = 0, priceChart, returnChart, periodDays = 0;
+const PALETTE = ['#6366f1','#22c55e','#f59e0b','#ec4899','#06b6d4','#a78bfa'];
 
-  try {
-    const res = await fetch('config/products.json?v=' + Date.now());
-    config = await res.json();
-  } catch {
-    document.querySelector('main').innerHTML = '<p id="error-msg">config/products.json 로드 실패</p>';
-    return;
-  }
+let config, products = [], currentIdx = -1 /* -1 = 전체 */, periodDays = 0;
+let priceChart, returnChart;
 
-  // 모든 상품 데이터 로드
-  for (const p of config.products) {
-    try {
-      const r = await fetch(p.dataFile + '?v=' + Date.now());
-      const history = await r.json();
-      allProducts.push({ ...p, history });
-    } catch {
-      allProducts.push({ ...p, history: [] });
+const $ = id => document.getElementById(id);
+
+function fmt(n, d=2) { return n.toLocaleString('ko-KR', {minimumFractionDigits:d,maximumFractionDigits:d}); }
+function fmtKRW(n) { return Math.round(n).toLocaleString('ko-KR') + '원'; }
+function fmtM(n) { return (Math.round(n/10000)/100).toLocaleString('ko-KR', {minimumFractionDigits:0,maximumFractionDigits:2}) + '만원'; }
+
+function filterByPeriod(history) {
+  if (!periodDays) return history;
+  const cut = new Date(); cut.setDate(cut.getDate() - periodDays);
+  const cutStr = cut.toISOString().slice(0,10);
+  return history.filter(h => h.date >= cutStr);
+}
+
+function chartOpts(yLabel, showLegend=false) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: showLegend, labels: { color: '#8892a4', boxWidth: 12, font: { size: 11 } } },
+      tooltip: { mode: 'index', intersect: false }
+    },
+    scales: {
+      x: { ticks: { color: '#8892a4', maxTicksLimit: 8, font:{size:11} }, grid: { color: '#2a2d3a' } },
+      y: { ticks: { color: '#8892a4', font:{size:11} }, grid: { color: '#2a2d3a' },
+           title: { display: !!yLabel, text: yLabel, color: '#8892a4', font:{size:11} } }
     }
+  };
+}
+
+/* ── 전체 탭 렌더 ───────────────────────────────────────── */
+function renderPortfolio() {
+  const view = $('view');
+
+  // KPI 계산
+  let totalCost=0, totalEval=0, latestDate='';
+  const productStats = products.map((p, i) => {
+    const h = p.history;
+    if (!h.length) return null;
+    const latest = h[h.length-1];
+    const cost = p.purchasePrice * p.units;
+    const eval_ = latest.price * p.units;
+    const ret = (latest.price - p.purchasePrice) / p.purchasePrice * 100;
+    if (latest.date > latestDate) latestDate = latest.date;
+    totalCost += cost; totalEval += eval_;
+    return { product: p, latest, cost, eval_, ret, color: PALETTE[i % PALETTE.length] };
+  }).filter(Boolean);
+
+  const totalProfit = totalEval - totalCost;
+  const totalRet = totalCost ? (totalProfit / totalCost) * 100 : 0;
+
+  $('last-updated').textContent = latestDate ? `마지막 업데이트: ${latestDate}` : '';
+
+  // 공통 날짜 축 (모든 상품 합집합)
+  const dateSet = new Set();
+  products.forEach(p => p.history.forEach(h => dateSet.add(h.date)));
+  const allDates = [...dateSet].sort();
+  const filtered = periodDays ? allDates.filter(d => {
+    const cut = new Date(); cut.setDate(cut.getDate()-periodDays);
+    return d >= cut.toISOString().slice(0,10);
+  }) : allDates;
+
+  view.innerHTML = `
+    <div id="kpi-grid"></div>
+    <div id="product-cards"></div>
+    <div class="chart-wrap">
+      <h2>상품별 누적 수익률 비교 (%)</h2>
+      <div id="period-btns">
+        <button class="period-btn${periodDays===14?' active':''}" data-days="14">2주</button>
+        <button class="period-btn${periodDays===30?' active':''}" data-days="30">1개월</button>
+        <button class="period-btn${periodDays===90?' active':''}" data-days="90">3개월</button>
+        <button class="period-btn${periodDays===0?' active':''}" data-days="0">전체</button>
+      </div>
+      <div class="chart-container"><canvas id="return-chart"></canvas></div>
+    </div>
+    <div id="history-wrap" style="display:none"></div>
+  `;
+
+  // KPI
+  const kpi = $('kpi-grid');
+  kpi.innerHTML = `
+    <div class="kpi-card">
+      <div class="label">총 평가금액</div>
+      <div class="value neutral">${fmtM(totalEval)}</div>
+      <div class="sub">매입원가 ${fmtM(totalCost)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">총 손익</div>
+      <div class="value ${totalProfit>=0?'positive':'negative'}">${totalProfit>=0?'+':''}${fmtM(totalProfit)}</div>
+      <div class="sub">수익률 ${totalRet>=0?'+':''}${fmt(totalRet)}%</div>
+    </div>
+    ${productStats.map(s => `
+    <div class="kpi-card">
+      <div class="label">${s.product.name}</div>
+      <div class="value ${s.ret>=0?'positive':'negative'}">${s.ret>=0?'+':''}${fmt(s.ret)}%</div>
+      <div class="sub">${fmtM(s.eval_)}</div>
+    </div>`).join('')}
+  `;
+
+  // 상품 미니 카드
+  const cards = $('product-cards');
+  cards.innerHTML = productStats.map((s, i) => `
+    <div class="product-card" onclick="switchTab(${i})">
+      <div class="pc-name">${s.product.name}</div>
+      <div class="pc-row">
+        <span class="pc-val neutral">${fmt(s.latest.price)}</span>
+        <span class="pc-ret ${s.ret>=0?'positive':'negative'}">${s.ret>=0?'+':''}${fmt(s.ret)}%</span>
+      </div>
+      <div class="sub" style="margin-top:6px">${fmtM(s.eval_)} · 손익 <span class="${s.eval_-s.cost>=0?'positive':'negative'}">${s.eval_-s.cost>=0?'+':''}${fmtM(s.eval_-s.cost)}</span></div>
+    </div>
+  `).join('');
+
+  // 기간 버튼
+  $('view').querySelectorAll('.period-btn').forEach(btn => {
+    btn.onclick = () => { periodDays = +btn.dataset.days; renderPortfolio(); };
+  });
+
+  // 수익률 비교 차트
+  if (returnChart) returnChart.destroy();
+  const datasets = productStats.map(s => {
+    const data = filtered.map(date => {
+      const h = s.product.history.find(x => x.date === date);
+      const price = h ? h.price : null;
+      return price !== null ? +((price - s.product.purchasePrice) / s.product.purchasePrice * 100).toFixed(2) : null;
+    });
+    return {
+      label: s.product.name,
+      data,
+      borderColor: s.color,
+      backgroundColor: s.color + '20',
+      fill: false, tension: 0.3,
+      pointRadius: filtered.length > 60 ? 0 : 3,
+      borderWidth: 2,
+      spanGaps: true,
+    };
+  });
+  returnChart = new Chart($('return-chart'), {
+    type: 'line',
+    data: { labels: filtered, datasets },
+    options: chartOpts('수익률 (%)', true)
+  });
+}
+
+/* ── 개별 상품 탭 렌더 ───────────────────────────────────── */
+function renderProduct(idx) {
+  const p = products[idx];
+  const { history, purchasePrice, units, purchaseDate } = p;
+  const color = PALETTE[idx % PALETTE.length];
+
+  $('last-updated').textContent = history.length ? `마지막 업데이트: ${history[history.length-1].date}` : '';
+
+  $('view').innerHTML = `
+    <div id="kpi-grid"></div>
+    <div class="chart-wrap">
+      <h2>기준가 추이</h2>
+      <div id="period-btns">
+        <button class="period-btn${periodDays===14?' active':''}" data-days="14">2주</button>
+        <button class="period-btn${periodDays===30?' active':''}" data-days="30">1개월</button>
+        <button class="period-btn${periodDays===90?' active':''}" data-days="90">3개월</button>
+        <button class="period-btn${periodDays===0?' active':''}" data-days="0">전체</button>
+      </div>
+      <div class="chart-container"><canvas id="price-chart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <h2>누적 수익률 (%)</h2>
+      <div class="chart-container"><canvas id="return-chart"></canvas></div>
+    </div>
+    <div id="history-wrap">
+      <h2>기준가 이력</h2>
+      <table>
+        <thead><tr><th>날짜</th><th>기준가</th><th>전일대비</th><th>수익률</th><th>평가금액</th></tr></thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+    </div>
+  `;
+
+  if (!history.length) { $('kpi-grid').innerHTML = '<p style="color:var(--muted);padding:8px 0">데이터 없음</p>'; return; }
+
+  const filtered = filterByPeriod(history);
+  const latest = history[history.length-1];
+  const prev   = history.length > 1 ? history[history.length-2] : null;
+  const ret    = (latest.price - purchasePrice) / purchasePrice * 100;
+  const eval_  = latest.price * units;
+  const cost   = purchasePrice * units;
+  const profit = eval_ - cost;
+  const dayChg = prev ? latest.price - prev.price : 0;
+  const dayPct = prev ? dayChg / prev.price * 100 : 0;
+  const days   = Math.round((new Date(latest.date) - new Date(purchaseDate)) / 86400000);
+
+  $('kpi-grid').innerHTML = `
+    <div class="kpi-card"><div class="label">현재 기준가</div><div class="value neutral">${fmt(latest.price)}</div><div class="sub">매입가 ${fmt(purchasePrice)}</div></div>
+    <div class="kpi-card"><div class="label">전일 대비</div><div class="value ${dayChg>=0?'positive':'negative'}">${dayChg>=0?'+':''}${fmt(dayChg)}</div><div class="sub">${dayChg>=0?'+':''}${fmt(dayPct)}%</div></div>
+    <div class="kpi-card"><div class="label">누적 수익률</div><div class="value ${ret>=0?'positive':'negative'}">${ret>=0?'+':''}${fmt(ret)}%</div><div class="sub">보유 ${days}일</div></div>
+    <div class="kpi-card"><div class="label">평가금액</div><div class="value neutral">${fmtM(eval_)}</div><div class="sub">손익 <span class="${profit>=0?'positive':'negative'}">${profit>=0?'+':''}${fmtM(profit)}</span></div></div>
+    <div class="kpi-card"><div class="label">보유 좌수</div><div class="value neutral">${units.toLocaleString('ko-KR')}</div><div class="sub">매입원가 ${fmtM(cost)}</div></div>
+  `;
+
+  $('view').querySelectorAll('.period-btn').forEach(btn => {
+    btn.onclick = () => { periodDays = +btn.dataset.days; renderProduct(idx); };
+  });
+
+  const labels  = filtered.map(h => h.date);
+  const prices  = filtered.map(h => h.price);
+  const returns = filtered.map(h => +((h.price-purchasePrice)/purchasePrice*100).toFixed(2));
+
+  if (priceChart)  priceChart.destroy();
+  if (returnChart) returnChart.destroy();
+
+  priceChart = new Chart($('price-chart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data: prices, borderColor: color, backgroundColor: color+'20', fill:true, tension:.3, pointRadius: prices.length>60?0:3, borderWidth:2 }] },
+    options: chartOpts('기준가')
+  });
+
+  returnChart = new Chart($('return-chart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data: returns, borderColor: returns[returns.length-1]>=0?'#22c55e':'#ef4444', backgroundColor: returns[returns.length-1]>=0?'rgba(34,197,94,.1)':'rgba(239,68,68,.1)', fill:true, tension:.3, pointRadius: returns.length>60?0:3, borderWidth:2 }] },
+    options: chartOpts('수익률 (%)')
+  });
+
+  $('history-tbody').innerHTML = [...history].reverse().map((h, i, arr) => {
+    const prevH = arr[i+1];
+    const chg = prevH ? h.price - prevH.price : 0;
+    const chgPct = prevH ? chg / prevH.price * 100 : 0;
+    const r = (h.price - purchasePrice) / purchasePrice * 100;
+    return `<tr>
+      <td>${h.date}</td>
+      <td>${fmt(h.price)}</td>
+      <td class="${chg>=0?'positive':'negative'}">${chg!==0?(chg>=0?'+':'')+fmt(chg)+' ('+(chgPct>=0?'+':'')+fmt(chgPct)+'%)':'-'}</td>
+      <td class="${r>=0?'positive':'negative'}">${r>=0?'+':''}${fmt(r)}%</td>
+      <td>${Math.round(h.price*units).toLocaleString('ko-KR')}원</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── 탭 전환 ─────────────────────────────────────────────── */
+function switchTab(idx) {
+  currentIdx = idx;
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i === idx+1));
+  if (priceChart)  { priceChart.destroy();  priceChart  = null; }
+  if (returnChart) { returnChart.destroy(); returnChart = null; }
+  if (idx === -1) renderPortfolio();
+  else renderProduct(idx);
+}
+
+/* ── 초기화 ──────────────────────────────────────────────── */
+(async () => {
+  try { config = await (await fetch('config/products.json?v='+Date.now())).json(); }
+  catch { document.querySelector('main').innerHTML = '<p style="color:var(--red);padding:40px">config/products.json 로드 실패</p>'; return; }
+
+  for (const [i, p] of config.products.entries()) {
+    try {
+      const h = await (await fetch(p.dataFile+'?v='+Date.now())).json();
+      products.push({ ...p, history: h });
+    } catch { products.push({ ...p, history: [] }); }
   }
 
-  // 탭 생성
-  const tabsEl = document.getElementById('tabs');
-  allProducts.forEach((p, i) => {
+  // 탭 생성: 전체 + 개별 상품
+  const tabsEl = $('tabs');
+  const all = document.createElement('button');
+  all.className = 'tab-btn active';
+  all.textContent = '전체 포트폴리오';
+  all.onclick = () => switchTab(-1);
+  tabsEl.appendChild(all);
+
+  products.forEach((p, i) => {
     const btn = document.createElement('button');
-    btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+    btn.className = 'tab-btn';
     btn.textContent = p.name;
-    btn.onclick = () => { currentIdx = i; setActiveTab(i); render(); };
+    btn.onclick = () => switchTab(i);
     tabsEl.appendChild(btn);
   });
 
-  function setActiveTab(idx) {
-    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
-  }
-
-  // 기간 버튼
-  document.getElementById('period-btns').querySelectorAll('.period-btn').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      periodDays = parseInt(btn.dataset.days);
-      render();
-    };
-  });
-
-  function fmt(n, dec = 2) { return n.toLocaleString('ko-KR', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
-  function fmtKRW(n) { return Math.round(n).toLocaleString('ko-KR') + '원'; }
-
-  function filterHistory(history) {
-    if (!periodDays) return history;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - periodDays);
-    const cutStr = cutoff.toISOString().slice(0, 10);
-    return history.filter(h => h.date >= cutStr);
-  }
-
-  function render() {
-    const product = allProducts[currentIdx];
-    const { history, purchasePrice, units, purchaseDate } = product;
-    const filtered = filterHistory(history);
-
-    if (!history.length) {
-      document.getElementById('kpi-grid').innerHTML = '<p style="color:var(--muted)">데이터 없음</p>';
-      return;
-    }
-
-    const latest = history[history.length - 1];
-    const prev = history.length > 1 ? history[history.length - 2] : null;
-    const returnPct = ((latest.price - purchasePrice) / purchasePrice) * 100;
-    const evalAmount = latest.price * units;
-    const costAmount = purchasePrice * units;
-    const profit = evalAmount - costAmount;
-    const dayChange = prev ? latest.price - prev.price : 0;
-    const dayChangePct = prev ? (dayChange / prev.price) * 100 : 0;
-    const holdDays = Math.round((new Date(latest.date) - new Date(purchaseDate)) / 86400000);
-
-    // KPI
-    document.getElementById('kpi-grid').innerHTML = `
-      <div class="kpi-card">
-        <div class="label">현재 기준가</div>
-        <div class="value neutral">${fmt(latest.price)}</div>
-        <div class="sub">매입가 ${fmt(purchasePrice)}</div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">전일 대비</div>
-        <div class="value ${dayChange >= 0 ? 'positive' : 'negative'}">${dayChange >= 0 ? '+' : ''}${fmt(dayChange)}</div>
-        <div class="sub">${dayChange >= 0 ? '+' : ''}${fmt(dayChangePct)}%</div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">누적 수익률</div>
-        <div class="value ${returnPct >= 0 ? 'positive' : 'negative'}">${returnPct >= 0 ? '+' : ''}${fmt(returnPct)}%</div>
-        <div class="sub">보유 ${holdDays}일</div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">평가금액</div>
-        <div class="value neutral">${fmtKRW(evalAmount)}</div>
-        <div class="sub">손익 <span class="${profit >= 0 ? 'positive' : 'negative'}">${profit >= 0 ? '+' : ''}${fmtKRW(profit)}</span></div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">보유 좌수</div>
-        <div class="value neutral">${units.toLocaleString('ko-KR')}</div>
-        <div class="sub">매입원가 ${fmtKRW(costAmount)}</div>
-      </div>
-    `;
-
-    // 차트 데이터
-    const labels = filtered.map(h => h.date);
-    const prices = filtered.map(h => h.price);
-    const returns = filtered.map(h => ((h.price - purchasePrice) / purchasePrice) * 100);
-
-    const chartOpts = (yLabel) => ({
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
-      scales: {
-        x: { ticks: { color: '#8892a4', maxTicksLimit: 8 }, grid: { color: '#2a2d3a' } },
-        y: { ticks: { color: '#8892a4' }, grid: { color: '#2a2d3a' }, title: { display: true, text: yLabel, color: '#8892a4' } }
-      }
-    });
-
-    if (priceChart) priceChart.destroy();
-    priceChart = new Chart(document.getElementById('price-chart'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          data: prices,
-          borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.1)',
-          fill: true, tension: 0.3, pointRadius: prices.length > 60 ? 0 : 3, borderWidth: 2
-        }]
-      },
-      options: chartOpts('기준가')
-    });
-
-    if (returnChart) returnChart.destroy();
-    returnChart = new Chart(document.getElementById('return-chart'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          data: returns,
-          borderColor: returns[returns.length - 1] >= 0 ? '#22c55e' : '#ef4444',
-          backgroundColor: returns[returns.length - 1] >= 0 ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)',
-          fill: true, tension: 0.3, pointRadius: returns.length > 60 ? 0 : 3, borderWidth: 2
-        }]
-      },
-      options: chartOpts('수익률 (%)')
-    });
-
-    // 이력 테이블 (최신순)
-    const tbody = document.getElementById('history-tbody');
-    tbody.innerHTML = [...history].reverse().map((h, i, arr) => {
-      const prevH = arr[i + 1];
-      const chg = prevH ? h.price - prevH.price : 0;
-      const chgPct = prevH ? (chg / prevH.price) * 100 : 0;
-      const ret = ((h.price - purchasePrice) / purchasePrice) * 100;
-      const eval_ = Math.round(h.price * units);
-      return `<tr>
-        <td>${h.date}</td>
-        <td>${fmt(h.price)}</td>
-        <td class="${chg >= 0 ? 'positive' : 'negative'}">${chg !== 0 ? (chg >= 0 ? '+' : '') + fmt(chg) + ' (' + (chgPct >= 0 ? '+' : '') + fmt(chgPct) + '%)' : '-'}</td>
-        <td class="${ret >= 0 ? 'positive' : 'negative'}">${ret >= 0 ? '+' : ''}${fmt(ret)}%</td>
-        <td>${eval_.toLocaleString('ko-KR')}원</td>
-      </tr>`;
-    }).join('');
-
-    // 마지막 업데이트
-    document.getElementById('last-updated').textContent = `마지막 업데이트: ${latest.date}`;
-  }
-
-  render();
+  renderPortfolio();
 })();
 </script>
 </body>
