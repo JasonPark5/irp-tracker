@@ -1,0 +1,43 @@
+name: Fetch IRP Prices
+
+on:
+  schedule:
+    # 한국시간 오후 6시 = UTC 오전 9시, 평일(월~금)
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch:  # 수동 실행 허용
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Fetch prices
+        id: fetch
+        run: node scripts/fetch-prices.js
+        continue-on-error: true
+
+      - name: Commit & push data
+        if: steps.fetch.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet && echo "No changes" || \
+            git commit -m "data: $(TZ='Asia/Seoul' date '+%Y-%m-%d') 기준가 업데이트" && git push

@@ -1,0 +1,12 @@
+{
+  "name": "irp-tracker",
+  "version": "1.0.0",
+  "description": "IRP 수익률 트래커 - GitHub Actions + GitHub Pages",
+  "scripts": {
+    "fetch": "node scripts/fetch-prices.js",
+    "postinstall": "playwright install chromium --with-deps"
+  },
+  "dependencies": {
+    "playwright": "^1.44.0"
+  }
+}

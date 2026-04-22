@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRP 수익률 트래커</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --green: #22c55e;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --accent: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    #last-updated { font-size: 0.75rem; color: var(--muted); }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    /* 상품 탭 */
+    #tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 8px 18px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--muted); cursor: pointer; font-size: 0.875rem;
+      transition: all .2s;
+    }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* KPI 카드 */
+    #kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .kpi-card .label { font-size: 0.75rem; color: var(--muted); margin-bottom: 8px; }
+    .kpi-card .value { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+    .kpi-card .sub { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+    .neutral { color: var(--blue); }
+
+    /* 차트 */
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .chart-wrap h2 { font-size: 0.875rem; color: var(--muted); margin-bottom: 16px; }
+    .chart-container { position: relative; height: 260px; }
+
+    /* 기간 필터 */
+    #period-btns { display: flex; gap: 6px; margin-bottom: 16px; }
+    .period-btn {
+      padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); cursor: pointer; font-size: 0.75rem;
+    }
+    .period-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* 이력 테이블 */
+    #history-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #history-wrap h2 { font-size: 0.875rem; color: var(--muted); padding: 16px 20px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { padding: 10px 20px; text-align: left; color: var(--muted); font-weight: 500; font-size: 0.75rem; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 20px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.03); }
+
+    #error-msg { color: var(--red); padding: 40px; text-align: center; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>📈 IRP 수익률 트래커</h1>
+  <span id="last-updated">로딩 중...</span>
+</header>
+<main>
+  <div id="tabs"></div>
+  <div id="kpi-grid"></div>
+
+  <div class="chart-wrap">
+    <h2>기준가 추이</h2>
+    <div id="period-btns">
+      <button class="period-btn" data-days="14">2주</button>
+      <button class="period-btn" data-days="30">1개월</button>
+      <button class="period-btn" data-days="90">3개월</button>
+      <button class="period-btn active" data-days="0">전체</button>
+    </div>
+    <div class="chart-container"><canvas id="price-chart"></canvas></div>
+  </div>
+
+  <div class="chart-wrap">
+    <h2>누적 수익률 (%)</h2>
+    <div class="chart-container"><canvas id="return-chart"></canvas></div>
+  </div>
+
+  <div id="history-wrap">
+    <h2>기준가 이력</h2>
+    <table>
+      <thead><tr><th>날짜</th><th>기준가</th><th>전일대비</th><th>수익률</th><th>평가금액</th></tr></thead>
+      <tbody id="history-tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+(async () => {
+  let config, allProducts = [], currentIdx = 0, priceChart, returnChart, periodDays = 0;
+
+  try {
+    const res = await fetch('config/products.json?v=' + Date.now());
+    config = await res.json();
+  } catch {
+    document.querySelector('main').innerHTML = '<p id="error-msg">config/products.json 로드 실패</p>';
+    return;
+  }
+
+  // 모든 상품 데이터 로드
+  for (const p of config.products) {
+    try {
+      const r = await fetch(p.dataFile + '?v=' + Date.now());
+      const history = await r.json();
+      allProducts.push({ ...p, history });
+    } catch {
+      allProducts.push({ ...p, history: [] });
+    }
+  }
+
+  // 탭 생성
+  const tabsEl = document.getElementById('tabs');
+  allProducts.forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = p.name;
+    btn.onclick = () => { currentIdx = i; setActiveTab(i); render(); };
+    tabsEl.appendChild(btn);
+  });
+
+  function setActiveTab(idx) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+  }
+
+  // 기간 버튼
+  document.getElementById('period-btns').querySelectorAll('.period-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      periodDays = parseInt(btn.dataset.days);
+      render();
+    };
+  });
+
+  function fmt(n, dec = 2) { return n.toLocaleString('ko-KR', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+  function fmtKRW(n) { return Math.round(n).toLocaleString('ko-KR') + '원'; }
+
+  function filterHistory(history) {
+    if (!periodDays) return history;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - periodDays);
+    const cutStr = cutoff.toISOString().slice(0, 10);
+    return history.filter(h => h.date >= cutStr);
+  }
+
+  function render() {
+    const product = allProducts[currentIdx];
+    const { history, purchasePrice, units, purchaseDate } = product;
+    const filtered = filterHistory(history);
+
+    if (!history.length) {
+      document.getElementById('kpi-grid').innerHTML = '<p style="color:var(--muted)">데이터 없음</p>';
+      return;
+    }
+
+    const latest = history[history.length - 1];
+    const prev = history.length > 1 ? history[history.length - 2] : null;
+    const returnPct = ((latest.price - purchasePrice) / purchasePrice) * 100;
+    const evalAmount = latest.price * units;
+    const costAmount = purchasePrice * units;
+    const profit = evalAmount - costAmount;
+    const dayChange = prev ? latest.price - prev.price : 0;
+    const dayChangePct = prev ? (dayChange / prev.price) * 100 : 0;
+    const holdDays = Math.round((new Date(latest.date) - new Date(purchaseDate)) / 86400000);
+
+    // KPI
+    document.getElementById('kpi-grid').innerHTML = `
+      <div class="kpi-card">
+        <div class="label">현재 기준가</div>
+        <div class="value neutral">${fmt(latest.price)}</div>
+        <div class="sub">매입가 ${fmt(purchasePrice)}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">전일 대비</div>
+        <div class="value ${dayChange >= 0 ? 'positive' : 'negative'}">${dayChange >= 0 ? '+' : ''}${fmt(dayChange)}</div>
+        <div class="sub">${dayChange >= 0 ? '+' : ''}${fmt(dayChangePct)}%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">누적 수익률</div>
+        <div class="value ${returnPct >= 0 ? 'positive' : 'negative'}">${returnPct >= 0 ? '+' : ''}${fmt(returnPct)}%</div>
+        <div class="sub">보유 ${holdDays}일</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">평가금액</div>
+        <div class="value neutral">${fmtKRW(evalAmount)}</div>
+        <div class="sub">손익 <span class="${profit >= 0 ? 'positive' : 'negative'}">${profit >= 0 ? '+' : ''}${fmtKRW(profit)}</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">보유 좌수</div>
+        <div class="value neutral">${units.toLocaleString('ko-KR')}</div>
+        <div class="sub">매입원가 ${fmtKRW(costAmount)}</div>
+      </div>
+    `;
+
+    // 차트 데이터
+    const labels = filtered.map(h => h.date);
+    const prices = filtered.map(h => h.price);
+    const returns = filtered.map(h => ((h.price - purchasePrice) / purchasePrice) * 100);
+
+    const chartOpts = (yLabel) => ({
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        x: { ticks: { color: '#8892a4', maxTicksLimit: 8 }, grid: { color: '#2a2d3a' } },
+        y: { ticks: { color: '#8892a4' }, grid: { color: '#2a2d3a' }, title: { display: true, text: yLabel, color: '#8892a4' } }
+      }
+    });
+
+    if (priceChart) priceChart.destroy();
+    priceChart = new Chart(document.getElementById('price-chart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: prices,
+          borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.1)',
+          fill: true, tension: 0.3, pointRadius: prices.length > 60 ? 0 : 3, borderWidth: 2
+        }]
+      },
+      options: chartOpts('기준가')
+    });
+
+    if (returnChart) returnChart.destroy();
+    returnChart = new Chart(document.getElementById('return-chart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: returns,
+          borderColor: returns[returns.length - 1] >= 0 ? '#22c55e' : '#ef4444',
+          backgroundColor: returns[returns.length - 1] >= 0 ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)',
+          fill: true, tension: 0.3, pointRadius: returns.length > 60 ? 0 : 3, borderWidth: 2
+        }]
+      },
+      options: chartOpts('수익률 (%)')
+    });
+
+    // 이력 테이블 (최신순)
+    const tbody = document.getElementById('history-tbody');
+    tbody.innerHTML = [...history].reverse().map((h, i, arr) => {
+      const prevH = arr[i + 1];
+      const chg = prevH ? h.price - prevH.price : 0;
+      const chgPct = prevH ? (chg / prevH.price) * 100 : 0;
+      const ret = ((h.price - purchasePrice) / purchasePrice) * 100;
+      const eval_ = Math.round(h.price * units);
+      return `<tr>
+        <td>${h.date}</td>
+        <td>${fmt(h.price)}</td>
+        <td class="${chg >= 0 ? 'positive' : 'negative'}">${chg !== 0 ? (chg >= 0 ? '+' : '') + fmt(chg) + ' (' + (chgPct >= 0 ? '+' : '') + fmt(chgPct) + '%)' : '-'}</td>
+        <td class="${ret >= 0 ? 'positive' : 'negative'}">${ret >= 0 ? '+' : ''}${fmt(ret)}%</td>
+        <td>${eval_.toLocaleString('ko-KR')}원</td>
+      </tr>`;
+    }).join('');
+
+    // 마지막 업데이트
+    document.getElementById('last-updated').textContent = `마지막 업데이트: ${latest.date}`;
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
