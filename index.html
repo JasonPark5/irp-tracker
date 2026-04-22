@@ -110,27 +110,28 @@ function renderPortfolio() {
   const view = $('view');
 
   // KPI 계산
-  let totalCost=0, totalEval=0, latestDate='';
+  let totalInvestedSum=0, totalEval=0, latestDate='';
   const productStats = products.map((p, i) => {
-    const h = p.history;
+    const h = p.history.filter(x => x.date >= p.purchaseDate); // purchaseDate 이후만
     if (!h.length) return null;
     const latest = h[h.length-1];
-    const cost = evalAmt(p.purchasePrice, p.units);
+    const invested = p.totalInvested || evalAmt(p.purchasePrice, p.units);
     const eval_ = evalAmt(latest.price, p.units);
     const ret = (latest.price - p.purchasePrice) / p.purchasePrice * 100;
     if (latest.date > latestDate) latestDate = latest.date;
-    totalCost += cost; totalEval += eval_;
-    return { product: p, latest, cost, eval_, ret, color: PALETTE[i % PALETTE.length] };
+    totalInvestedSum += invested; totalEval += eval_;
+    return { product: p, history: h, latest, invested, eval_, ret, color: PALETTE[i % PALETTE.length] };
   }).filter(Boolean);
 
-  const totalProfit = totalEval - totalCost;
-  const totalRet = totalCost ? (totalProfit / totalCost) * 100 : 0;
+  const totalProfit = totalEval - totalInvestedSum;
+  const totalRet = totalInvestedSum ? (totalProfit / totalInvestedSum) * 100 : 0;
 
   $('last-updated').textContent = latestDate ? `마지막 업데이트: ${latestDate}` : '';
 
-  // 공통 날짜 축 (모든 상품 합집합)
+  // 공통 날짜 축 — 가장 이른 purchaseDate 이후만
+  const minPurchaseDate = products.reduce((m, p) => p.purchaseDate < m ? p.purchaseDate : m, '9999');
   const dateSet = new Set();
-  products.forEach(p => p.history.forEach(h => dateSet.add(h.date)));
+  products.forEach(p => p.history.filter(h => h.date >= p.purchaseDate).forEach(h => dateSet.add(h.date)));
   const allDates = [...dateSet].sort();
   const filtered = periodDays ? allDates.filter(d => {
     const cut = new Date(); cut.setDate(cut.getDate()-periodDays);
@@ -165,9 +166,14 @@ function renderPortfolio() {
   const kpi = $('kpi-grid');
   kpi.innerHTML = `
     <div class="kpi-card">
+      <div class="label">총 매입금액</div>
+      <div class="value neutral">${fmtM(totalInvestedSum)}</div>
+      <div class="sub">${Math.round(totalInvestedSum).toLocaleString('ko-KR')}원</div>
+    </div>
+    <div class="kpi-card">
       <div class="label">총 평가금액</div>
       <div class="value neutral">${fmtM(totalEval)}</div>
-      <div class="sub">매입원가 ${fmtM(totalCost)}</div>
+      <div class="sub">${Math.round(totalEval).toLocaleString('ko-KR')}원</div>
     </div>
     <div class="kpi-card">
       <div class="label">총 손익</div>
@@ -178,22 +184,24 @@ function renderPortfolio() {
     <div class="kpi-card">
       <div class="label">${s.product.name}</div>
       <div class="value ${s.ret>=0?'positive':'negative'}">${s.ret>=0?'+':''}${fmt(s.ret)}%</div>
-      <div class="sub">${fmtM(s.eval_)}</div>
+      <div class="sub">${fmtM(s.eval_)} · 매입 ${fmtM(s.invested)}</div>
     </div>`).join('')}
   `;
 
   // 상품 미니 카드
   const cards = $('product-cards');
-  cards.innerHTML = productStats.map((s, i) => `
+  cards.innerHTML = productStats.map((s, i) => {
+    const pl = s.eval_ - s.invested;
+    return `
     <div class="product-card" onclick="switchTab(${i})">
       <div class="pc-name">${s.product.name}</div>
       <div class="pc-row">
         <span class="pc-val neutral">${fmt(s.latest.price)}</span>
         <span class="pc-ret ${s.ret>=0?'positive':'negative'}">${s.ret>=0?'+':''}${fmt(s.ret)}%</span>
       </div>
-      <div class="sub" style="margin-top:6px">${fmtM(s.eval_)} · 손익 <span class="${s.eval_-s.cost>=0?'positive':'negative'}">${s.eval_-s.cost>=0?'+':''}${fmtM(s.eval_-s.cost)}</span></div>
-    </div>
-  `).join('');
+      <div class="sub" style="margin-top:6px">${fmtM(s.eval_)} · 손익 <span class="${pl>=0?'positive':'negative'}">${pl>=0?'+':''}${fmtM(pl)}</span></div>
+    </div>`;
+  }).join('');
 
   // 기간 버튼
   $('view').querySelectorAll('.period-btn').forEach(btn => {
@@ -205,7 +213,7 @@ function renderPortfolio() {
   const totalPlData = filtered.map(date => {
     let total = 0, allFound = false;
     for (const s of productStats) {
-      const h = s.product.history.find(x => x.date === date);
+      const h = s.history.find(x => x.date === date);
       if (h) { total += evalAmt(h.price - s.product.purchasePrice, s.product.units); allFound = true; }
     }
     return allFound ? Math.round(total) : null;
@@ -233,7 +241,7 @@ function renderPortfolio() {
   const retDatasets = productStats.map(s => ({
     label: s.product.name,
     data: filtered.map(date => {
-      const h = s.product.history.find(x => x.date === date);
+      const h = s.history.find(x => x.date === date);
       return h ? +((h.price - s.product.purchasePrice) / s.product.purchasePrice * 100).toFixed(2) : null;
     }),
     borderColor: s.color, backgroundColor: s.color + '20',
@@ -249,7 +257,7 @@ function renderPortfolio() {
   const plDatasets = productStats.map(s => ({
     label: s.product.name,
     data: filtered.map(date => {
-      const h = s.product.history.find(x => x.date === date);
+      const h = s.history.find(x => x.date === date);
       return h ? Math.round(evalAmt(h.price - s.product.purchasePrice, s.product.units)) : null;
     }),
     borderColor: s.color, backgroundColor: s.color + '20',
@@ -306,15 +314,16 @@ function renderProduct(idx) {
     </div>
   `;
 
-  if (!history.length) { $('kpi-grid').innerHTML = '<p style="color:var(--muted);padding:8px 0">데이터 없음</p>'; return; }
+  const historyFromPurchase = history.filter(h => h.date >= purchaseDate);
+  if (!historyFromPurchase.length) { $('kpi-grid').innerHTML = '<p style="color:var(--muted);padding:8px 0">데이터 없음</p>'; return; }
 
-  const filtered = filterByPeriod(history);
-  const latest = history[history.length-1];
-  const prev   = history.length > 1 ? history[history.length-2] : null;
+  const filtered = filterByPeriod(historyFromPurchase);
+  const latest = historyFromPurchase[historyFromPurchase.length-1];
+  const prev   = historyFromPurchase.length > 1 ? historyFromPurchase[historyFromPurchase.length-2] : null;
   const ret    = (latest.price - purchasePrice) / purchasePrice * 100;
   const eval_  = evalAmt(latest.price, units);
-  const cost   = evalAmt(purchasePrice, units);
-  const profit = eval_ - cost;
+  const invested = p.totalInvested || evalAmt(purchasePrice, units);
+  const profit = eval_ - invested;
   const dayChg = prev ? latest.price - prev.price : 0;
   const dayPct = prev ? dayChg / prev.price * 100 : 0;
   const days   = Math.round((new Date(latest.date) - new Date(purchaseDate)) / 86400000);
@@ -323,8 +332,9 @@ function renderProduct(idx) {
     <div class="kpi-card"><div class="label">현재 기준가</div><div class="value neutral">${fmt(latest.price)}</div><div class="sub">매입가 ${fmt(purchasePrice)}</div></div>
     <div class="kpi-card"><div class="label">전일 대비</div><div class="value ${dayChg>=0?'positive':'negative'}">${dayChg>=0?'+':''}${fmt(dayChg)}</div><div class="sub">${dayChg>=0?'+':''}${fmt(dayPct)}%</div></div>
     <div class="kpi-card"><div class="label">누적 수익률</div><div class="value ${ret>=0?'positive':'negative'}">${ret>=0?'+':''}${fmt(ret)}%</div><div class="sub">보유 ${days}일</div></div>
+    <div class="kpi-card"><div class="label">매입금액</div><div class="value neutral">${fmtM(invested)}</div><div class="sub">${Math.round(invested).toLocaleString('ko-KR')}원</div></div>
     <div class="kpi-card"><div class="label">평가금액</div><div class="value neutral">${fmtM(eval_)}</div><div class="sub">손익 <span class="${profit>=0?'positive':'negative'}">${profit>=0?'+':''}${fmtM(profit)}</span></div></div>
-    <div class="kpi-card"><div class="label">보유 좌수</div><div class="value neutral">${units.toLocaleString('ko-KR')}</div><div class="sub">매입원가 ${fmtM(cost)}</div></div>
+    <div class="kpi-card"><div class="label">보유 좌수</div><div class="value neutral">${units.toLocaleString('ko-KR')}</div><div class="sub">가중평균단가 ${fmt(purchasePrice)}</div></div>
   `;
 
   $('view').querySelectorAll('.period-btn').forEach(btn => {
@@ -362,7 +372,7 @@ function renderProduct(idx) {
     }}}
   });
 
-  $('history-tbody').innerHTML = [...history].reverse().map((h, i, arr) => {
+  $('history-tbody').innerHTML = [...historyFromPurchase].reverse().map((h, i, arr) => {
     const prevH = arr[i+1];
     const chg = prevH ? h.price - prevH.price : 0;
     const chgPct = prevH ? chg / prevH.price * 100 : 0;

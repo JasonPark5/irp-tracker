@@ -9,6 +9,7 @@
       "purchasePrice": 2678.42,
       "purchaseDate": "2026-03-06",
       "units": 5665911,
+      "totalInvested": 15175688,
       "currency": "KRW"
     },
     {
@@ -20,6 +21,7 @@
       "purchasePrice": 3314.85,
       "purchaseDate": "2026-03-06",
       "units": 19952129,
+      "totalInvested": 66139368,
       "currency": "KRW"
     },
     {
@@ -31,6 +33,7 @@
       "purchasePrice": 3112.74,
       "purchaseDate": "2026-03-06",
       "units": 16372623,
+      "totalInvested": 50963678,
       "currency": "KRW"
     }
   ]
