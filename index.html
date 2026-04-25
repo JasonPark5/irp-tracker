@@ -79,7 +79,7 @@ const $ = id => document.getElementById(id);
 
 function fmt(n, d=2) { return n.toLocaleString('ko-KR', {minimumFractionDigits:d,maximumFractionDigits:d}); }
 function fmtKRW(n) { return Math.round(n).toLocaleString('ko-KR') + '원'; }
-function fmtM(n) { return (Math.round(n/10000)/100).toLocaleString('ko-KR', {minimumFractionDigits:0,maximumFractionDigits:2}) + '만원'; }
+function fmtM(n) { return Math.round(n/10000).toLocaleString('ko-KR') + '만원'; }
 // 기준가는 1,000좌 기준 → 평가금액 = 기준가 / 1000 × 좌수
 function evalAmt(price, units) { return price / 1000 * units; }
 
