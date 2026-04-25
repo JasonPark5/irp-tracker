@@ -12,7 +12,10 @@ const fs   = require('fs');
 const path = require('path');
 
 const ROOT   = path.join(__dirname, '..');
-const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'config/products.json'), 'utf8'));
+function readJson(p) {
+  return JSON.parse(fs.readFileSync(p, 'utf8').replace(/^\uFEFF/, ''));
+}
+const config = readJson(path.join(ROOT, 'config/products.json'));
 
 function todayKST() {
   const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -170,7 +173,7 @@ async function run() {
 
     // 기존 history와 머지
     const dataPath = path.join(ROOT, product.dataFile);
-    const history  = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    const history  = readJson(dataPath);
     const existing = new Map(history.map(h => [h.date, h.price]));
 
     let added = 0, updated = 0;
