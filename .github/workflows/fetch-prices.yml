@@ -3,7 +3,7 @@ name: Fetch IRP Prices
 on:
   schedule:
     # 한국시간 오후 6시 = UTC 오전 9시, 평일(월~금)
-    - cron: '0 9 * * 1-5'
+    - cron: '0 9 * * *'
   workflow_dispatch:  # 수동 실행 허용
 
 permissions:
