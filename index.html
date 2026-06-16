@@ -128,6 +128,11 @@ function renderPortfolio() {
   const totalRet = totalInvestedSum ? (totalProfit / totalInvestedSum) * 100 : 0;
   const depositProfit = totalEval - initialDeposit;
   const depositRet = initialDeposit ? (depositProfit / initialDeposit) * 100 : 0;
+  const initialPurchaseDate = config.initialPurchaseDate || '';
+  const holdingDays = initialPurchaseDate
+    ? Math.max(1, Math.round((new Date(latestDate || new Date()) - new Date(initialPurchaseDate)) / 86400000))
+    : 0;
+  const annualRet = holdingDays ? depositRet * 365 / holdingDays : 0;
 
   $('last-updated').textContent = latestDate ? `마지막 업데이트: ${latestDate}` : '';
 
@@ -182,6 +187,11 @@ function renderPortfolio() {
       <div class="label">원금 대비 손익</div>
       <div class="value ${depositProfit>=0?'positive':'negative'}">${depositProfit>=0?'+':''}${fmtM(depositProfit)}</div>
       <div class="sub">수익률 ${depositRet>=0?'+':''}${fmt(depositRet)}%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">연환산 수익률</div>
+      <div class="value ${annualRet>=0?'positive':'negative'}">${annualRet>=0?'+':''}${fmt(annualRet)}%</div>
+      <div class="sub">보유 ${holdingDays}일 기준 (${initialPurchaseDate}~)</div>
     </div>
     <div class="kpi-card">
       <div class="label">매입원가 기준 손익</div>
