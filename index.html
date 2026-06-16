@@ -132,7 +132,7 @@ function renderPortfolio() {
   const holdingDays = initialPurchaseDate
     ? Math.max(1, Math.round((new Date(latestDate || new Date()) - new Date(initialPurchaseDate)) / 86400000))
     : 0;
-  const annualRet = holdingDays ? depositRet * 365 / holdingDays : 0;
+  const cagr = (holdingDays && initialDeposit) ? (Math.pow(totalEval / initialDeposit, 365 / holdingDays) - 1) * 100 : 0;
 
   $('last-updated').textContent = latestDate ? `마지막 업데이트: ${latestDate}` : '';
 
@@ -174,29 +174,24 @@ function renderPortfolio() {
   const kpi = $('kpi-grid');
   kpi.innerHTML = `
     <div class="kpi-card">
-      <div class="label">원금(입금액)</div>
+      <div class="label">최초 입금액</div>
       <div class="value neutral">${fmtM(initialDeposit)}</div>
       <div class="sub">${Math.round(initialDeposit).toLocaleString('ko-KR')}원</div>
     </div>
     <div class="kpi-card">
-      <div class="label">총 평가금액</div>
+      <div class="label">현재 평가금</div>
       <div class="value neutral">${fmtM(totalEval)}</div>
       <div class="sub">${Math.round(totalEval).toLocaleString('ko-KR')}원</div>
     </div>
     <div class="kpi-card">
-      <div class="label">원금 대비 손익</div>
-      <div class="value ${depositProfit>=0?'positive':'negative'}">${depositProfit>=0?'+':''}${fmtM(depositProfit)}</div>
-      <div class="sub">수익률 ${depositRet>=0?'+':''}${fmt(depositRet)}%</div>
+      <div class="label">누적 수익률</div>
+      <div class="value ${depositRet>=0?'positive':'negative'}">${depositRet>=0?'+':''}${fmt(depositRet)}%</div>
+      <div class="sub">손익 ${depositProfit>=0?'+':''}${fmtM(depositProfit)}</div>
     </div>
     <div class="kpi-card">
-      <div class="label">연환산 수익률</div>
-      <div class="value ${annualRet>=0?'positive':'negative'}">${annualRet>=0?'+':''}${fmt(annualRet)}%</div>
+      <div class="label">연복리 수익률 (CAGR)</div>
+      <div class="value ${cagr>=0?'positive':'negative'}">${cagr>=0?'+':''}${fmt(cagr)}%</div>
       <div class="sub">보유 ${holdingDays}일 기준 (${initialPurchaseDate}~)</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">매입원가 기준 손익</div>
-      <div class="value ${totalProfit>=0?'positive':'negative'}">${totalProfit>=0?'+':''}${fmtM(totalProfit)}</div>
-      <div class="sub">수익률 ${totalRet>=0?'+':''}${fmt(totalRet)}% · 매입 ${fmtM(totalInvestedSum)}</div>
     </div>
     ${productStats.map(s => `
     <div class="kpi-card">
